@@ -1,0 +1,1850 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>VTcampro – Professional Camera</title>
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Exo+2:wght@300;400;600;700;900&display=swap" rel="stylesheet">
+  <style>
+    /* ===================== RESET & ROOT ===================== */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:        #050810;
+      --surface:   #0d1117;
+      --surface2:  #141922;
+      --surface3:  #1c2333;
+      --border:    #1e2d40;
+      --accent:    #00d4ff;
+      --accent2:   #ff6b35;
+      --gold:      #ffd700;
+      --danger:    #ff3b3b;
+      --success:   #00ff88;
+      --purple:    #a855f7;
+      --text:      #e8f0fe;
+      --muted:     #5a7090;
+      --font-mono: 'Share Tech Mono', monospace;
+      --font-ui:   'Exo 2', sans-serif;
+    }
+
+    html, body {
+      width: 100%; height: 100%;
+      background: #000;
+      display: flex; align-items: center; justify-content: center;
+      overflow: hidden;
+      font-family: var(--font-ui);
+    }
+
+    /* ===================== APP SHELL ===================== */
+    #app {
+      width: 390px;
+      height: 844px;
+      background: var(--bg);
+      border-radius: 44px;
+      overflow: hidden;
+      position: relative;
+      border: 1px solid #1a2030;
+      box-shadow:
+        0 0 0 1px #0a0f1a,
+        0 0 60px rgba(0,212,255,0.08),
+        0 40px 80px rgba(0,0,0,0.8);
+      display: flex;
+      flex-direction: column;
+      user-select: none;
+    }
+
+    /* ===================== STATUS BAR ===================== */
+    #status-bar {
+      height: 44px;
+      background: var(--surface);
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 20px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    #status-bar .logo {
+      font-family: var(--font-mono);
+      font-size: 13px; color: var(--accent);
+      letter-spacing: 3px; font-weight: 700;
+    }
+    #status-bar .logo span { color: var(--accent2); }
+    .status-icons { display: flex; gap: 10px; align-items: center; }
+    .status-icon { font-size: 12px; color: var(--muted); }
+    .status-icon.on { color: var(--text); }
+    #clock {
+      font-family: var(--font-mono);
+      font-size: 11px; color: var(--muted);
+    }
+
+    /* ===================== VIEWFINDER ===================== */
+    #viewfinder {
+      position: relative;
+      width: 100%; flex: 1;
+      overflow: hidden;
+      cursor: crosshair;
+      background: #000;
+    }
+
+    #vf-canvas {
+      width: 100%; height: 100%;
+      display: block;
+    }
+
+    /* HUD Corners */
+    .hud-corner {
+      position: absolute; width: 22px; height: 22px;
+      border-color: var(--accent); border-style: solid;
+      opacity: 0.65; pointer-events: none;
+      transition: opacity 0.3s;
+    }
+    .hud-corner.tl { top: 12px; left: 12px; border-width: 2px 0 0 2px; }
+    .hud-corner.tr { top: 12px; right: 12px; border-width: 2px 2px 0 0; }
+    .hud-corner.bl { bottom: 12px; left: 12px; border-width: 0 0 2px 2px; }
+    .hud-corner.br { bottom: 12px; right: 12px; border-width: 0 2px 2px 0; }
+
+    /* Focus ring */
+    #focus-ring {
+      position: absolute;
+      width: 64px; height: 64px;
+      border: 1.5px solid var(--gold);
+      border-radius: 4px;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+      animation: focusPulse 2.5s ease-in-out infinite;
+      transition: top 0.2s, left 0.2s, border-color 0.2s, width 0.2s, height 0.2s;
+    }
+    #focus-ring.locked { border-color: var(--success); animation: none; }
+    @keyframes focusPulse {
+      0%,100% { opacity: 0.8; }
+      50% { opacity: 0.25; }
+    }
+
+    /* Grid overlay */
+    #grid-canvas {
+      position: absolute; inset: 0;
+      width: 100%; height: 100%;
+      pointer-events: none;
+      display: none;
+    }
+    #grid-canvas.on { display: block; }
+
+    /* Top HUD overlay */
+    #vf-top {
+      position: absolute; top: 0; left: 0; right: 0;
+      display: flex; justify-content: space-between; align-items: flex-start;
+      padding: 10px 12px;
+      background: linear-gradient(to bottom, rgba(0,0,0,0.75) 0%, transparent 100%);
+      pointer-events: none;
+    }
+    .vf-badge {
+      font-family: var(--font-mono);
+      font-size: 10px; font-weight: 700;
+      letter-spacing: 2px; padding: 3px 9px;
+      border-radius: 3px;
+    }
+    .vf-badge.photo   { background: var(--accent); color: var(--bg); }
+    .vf-badge.video   { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+    .vf-badge.rec     { background: var(--danger); color: #fff; animation: blink 1s infinite; }
+    .vf-badge.night   { background: #2233cc; color: #aac0ff; }
+    .vf-badge.pro     { background: var(--gold); color: #111; }
+    .vf-badge.portrait{ background: var(--purple); color: #fff; }
+    .vf-badge.pano    { background: #006644; color: var(--success); }
+    .vf-badge.slomo   { background: #002244; color: var(--accent); }
+    .vf-badge.timelapse{ background: #331100; color: var(--gold); }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+    #rec-timer {
+      font-family: var(--font-mono);
+      font-size: 12px; color: var(--danger);
+      display: none; animation: blink 1s infinite;
+    }
+    #zoom-display {
+      font-family: var(--font-mono);
+      font-size: 11px; color: rgba(255,255,255,0.7);
+      letter-spacing: 1px;
+    }
+    #hdr-indicator {
+      font-family: var(--font-mono);
+      font-size: 9px; color: var(--gold);
+      letter-spacing: 2px; opacity: 0;
+      transition: opacity 0.3s;
+    }
+    #hdr-indicator.on { opacity: 1; }
+
+    /* Scene AI label */
+    #scene-label {
+      position: absolute; bottom: 48px; left: 50%;
+      transform: translateX(-50%);
+      font-family: var(--font-mono);
+      font-size: 10px; color: var(--accent);
+      letter-spacing: 2px;
+      background: rgba(0,0,0,0.55);
+      border: 1px solid rgba(0,212,255,0.3);
+      padding: 3px 14px; border-radius: 20px;
+      pointer-events: none;
+      transition: opacity 0.4s;
+    }
+
+    /* Pro HUD */
+    #pro-hud {
+      position: absolute; top: 0; right: 0;
+      background: rgba(0,0,0,0.7);
+      padding: 8px 10px;
+      border-bottom-left-radius: 10px;
+      font-family: var(--font-mono);
+      font-size: 10px; color: var(--gold);
+      line-height: 1.9; letter-spacing: 1px;
+      display: none; pointer-events: none;
+    }
+    #pro-hud.on { display: block; }
+
+    /* Histogram (Pro) */
+    #histogram {
+      position: absolute; bottom: 50px; right: 10px;
+      width: 80px; height: 36px;
+      background: rgba(0,0,0,0.5);
+      border: 1px solid #333;
+      border-radius: 4px;
+      display: none; pointer-events: none;
+    }
+    #histogram.on { display: block; }
+    #hist-canvas { width: 100%; height: 100%; }
+
+    /* Panorama guide bar */
+    #pano-bar {
+      position: absolute; bottom: 48px; left: 16px; right: 16px;
+      display: none; pointer-events: none;
+    }
+    #pano-bar.on { display: block; }
+    .pano-label {
+      font-family: var(--font-mono);
+      font-size: 9px; color: var(--success);
+      letter-spacing: 2px; text-align: center;
+      margin-bottom: 5px;
+    }
+    .pano-track {
+      height: 6px; background: rgba(255,255,255,0.1);
+      border-radius: 3px; overflow: hidden;
+      border: 1px solid rgba(0,255,136,0.3);
+    }
+    .pano-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--success), var(--accent));
+      border-radius: 3px;
+      width: 0%;
+      transition: width 0.08s linear;
+    }
+
+    /* Night progress */
+    #night-capture-ui {
+      position: absolute; bottom: 50px; left: 16px; right: 16px;
+      display: none; pointer-events: none;
+    }
+    #night-capture-ui.on { display: block; }
+    .night-label {
+      font-family: var(--font-mono);
+      font-size: 9px; color: #7799ff;
+      letter-spacing: 2px; text-align: center;
+      margin-bottom: 4px;
+    }
+    .night-track {
+      height: 4px; background: rgba(30,40,80,0.8);
+      border-radius: 2px; overflow: hidden;
+    }
+    .night-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #3355ff, var(--accent));
+      border-radius: 2px; width: 0%;
+      transition: width 0.15s linear;
+    }
+
+    /* Flash burst */
+    #flash-burst {
+      position: absolute; inset: 0;
+      background: white; opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.04s;
+    }
+
+    /* Countdown overlay */
+    #countdown {
+      position: absolute; inset: 0;
+      display: none;
+      align-items: center; justify-content: center;
+      pointer-events: none;
+    }
+    #countdown.on { display: flex; }
+    #countdown-num {
+      font-family: var(--font-mono);
+      font-size: 96px; font-weight: 900;
+      color: var(--accent);
+      text-shadow: 0 0 40px var(--accent), 0 0 80px rgba(0,212,255,0.4);
+      animation: countPulse 0.9s ease-in-out infinite;
+    }
+    @keyframes countPulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.1)} }
+
+    /* Scanline effect */
+    #scanlines {
+      position: absolute; inset: 0;
+      background: repeating-linear-gradient(
+        to bottom,
+        transparent 0px, transparent 2px,
+        rgba(0,0,0,0.06) 2px, rgba(0,0,0,0.06) 4px
+      );
+      pointer-events: none; opacity: 0.4;
+    }
+
+    /* ===================== TOP CONTROLS ===================== */
+    #top-controls {
+      background: var(--surface);
+      display: flex; align-items: center; justify-content: space-around;
+      padding: 8px 10px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+      gap: 4px;
+    }
+    .tc-btn {
+      display: flex; flex-direction: column; align-items: center;
+      gap: 3px; cursor: pointer; padding: 6px 8px;
+      border-radius: 10px; border: none;
+      background: transparent;
+      transition: background 0.15s, transform 0.1s;
+      min-width: 46px;
+    }
+    .tc-btn:hover { background: var(--surface3); }
+    .tc-btn:active { transform: scale(0.93); }
+    .tc-btn .t-icon { font-size: 17px; line-height: 1; }
+    .tc-btn .t-label {
+      font-family: var(--font-mono);
+      font-size: 8px; color: var(--muted);
+      letter-spacing: 1.5px;
+    }
+    .tc-btn.on .t-label { color: var(--accent); }
+    .tc-btn.on .t-icon  { filter: drop-shadow(0 0 4px var(--accent)); }
+
+    /* ===================== MODE BAR ===================== */
+    #mode-bar {
+      background: var(--surface2);
+      display: flex; gap: 0;
+      overflow-x: auto; scrollbar-width: none;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    #mode-bar::-webkit-scrollbar { display: none; }
+    .mode-tab {
+      flex-shrink: 0;
+      padding: 9px 14px;
+      font-family: var(--font-mono);
+      font-size: 10px; letter-spacing: 1.5px;
+      cursor: pointer; border: none;
+      background: transparent; color: var(--muted);
+      position: relative; transition: color 0.2s;
+      border-bottom: 2px solid transparent;
+    }
+    .mode-tab::after {
+      content: '';
+      position: absolute; bottom: -2px; left: 50%; right: 50%;
+      height: 2px; background: var(--accent);
+      transition: left 0.2s, right 0.2s;
+      border-radius: 2px;
+    }
+    .mode-tab.active { color: var(--accent); }
+    .mode-tab.active::after { left: 0; right: 0; }
+
+    /* ===================== CONTROLS PANEL ===================== */
+    #ctrl-panel {
+      background: var(--surface);
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+      min-height: 68px;
+      display: flex; align-items: center;
+    }
+
+    /* Panel: Photo */
+    .ctrl-photo {
+      display: flex; align-items: center;
+      gap: 8px; width: 100%; flex-wrap: wrap;
+    }
+    .ctrl-chip {
+      display: flex; align-items: center; gap: 5px;
+      padding: 5px 10px; border-radius: 20px;
+      border: 1px solid var(--border);
+      background: transparent; cursor: pointer;
+      transition: all 0.15s; color: var(--muted);
+      font-family: var(--font-mono); font-size: 9px;
+      letter-spacing: 1px;
+    }
+    .ctrl-chip:hover { border-color: var(--accent); color: var(--text); }
+    .ctrl-chip.on { background: rgba(0,212,255,0.1); border-color: var(--accent); color: var(--accent); }
+    .ctrl-chip .c-icon { font-size: 13px; }
+    .ctrl-stats {
+      margin-left: auto;
+      font-family: var(--font-mono);
+      font-size: 9px; color: var(--muted);
+      text-align: right; line-height: 1.8;
+    }
+    .ctrl-stats .dot-on { color: var(--success); }
+
+    /* Panel: Video */
+    .ctrl-video {
+      display: none; align-items: center;
+      gap: 8px; width: 100%;
+    }
+    .vid-quality {
+      margin-left: auto;
+      font-family: var(--font-mono); font-size: 9px;
+      color: var(--muted); line-height: 1.8; text-align: right;
+    }
+
+    /* Panel: Portrait */
+    .ctrl-portrait {
+      display: none; width: 100%; flex-direction: column; gap: 8px;
+    }
+    .slider-row {
+      display: flex; align-items: center; gap: 10px;
+    }
+    .slider-label {
+      font-family: var(--font-mono); font-size: 9px;
+      color: var(--muted); letter-spacing: 1.5px; min-width: 36px;
+    }
+    input[type="range"] {
+      flex: 1; -webkit-appearance: none;
+      height: 3px; border-radius: 2px;
+      background: var(--border); cursor: pointer;
+      outline: none;
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 14px; height: 14px; border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 6px rgba(0,212,255,0.5);
+    }
+    input[type="range"].gold::-webkit-slider-thumb { background: var(--gold); box-shadow: 0 0 6px rgba(255,215,0,0.5); }
+    .slider-val {
+      font-family: var(--font-mono); font-size: 9px;
+      color: var(--accent); min-width: 32px; text-align: right;
+    }
+    .slider-val.gold { color: var(--gold); }
+
+    /* Panel: Night */
+    .ctrl-night {
+      display: none; flex-direction: column; gap: 6px; width: 100%;
+    }
+    .night-info {
+      font-family: var(--font-mono); font-size: 10px;
+      color: #5577ff; letter-spacing: 1.5px;
+    }
+    .night-sub {
+      font-family: var(--font-mono); font-size: 9px;
+      color: var(--muted); letter-spacing: 1px;
+    }
+
+    /* Panel: Pro */
+    .ctrl-pro {
+      display: none; flex-direction: column; gap: 6px; width: 100%;
+    }
+    .pro-row {
+      display: flex; align-items: center; gap: 8px;
+    }
+    .pro-label {
+      font-family: var(--font-mono); font-size: 9px;
+      color: var(--gold); letter-spacing: 2px; min-width: 28px;
+    }
+    .pro-val {
+      font-family: var(--font-mono); font-size: 9px;
+      color: var(--text); min-width: 44px; text-align: right;
+    }
+
+    /* Panel: Panorama */
+    .ctrl-pano {
+      display: none; flex-direction: column; align-items: center;
+      gap: 4px; width: 100%;
+    }
+    .pano-hint {
+      font-family: var(--font-mono); font-size: 10px;
+      color: var(--success); letter-spacing: 2px; text-align: center;
+    }
+    .pano-sub {
+      font-family: var(--font-mono); font-size: 9px;
+      color: var(--muted); letter-spacing: 1px;
+    }
+
+    /* Panel: Slo-Mo */
+    .ctrl-slomo {
+      display: none; align-items: center; gap: 10px; width: 100%;
+    }
+    .fps-btn {
+      padding: 5px 14px; border-radius: 6px;
+      border: 1px solid var(--border);
+      background: transparent; cursor: pointer;
+      font-family: var(--font-mono); font-size: 10px;
+      color: var(--muted); transition: all 0.15s;
+    }
+    .fps-btn:hover { border-color: var(--accent); color: var(--text); }
+    .fps-btn.on { background: rgba(0,212,255,0.1); border-color: var(--accent); color: var(--accent); }
+    .slomo-tag {
+      margin-left: auto;
+      font-family: var(--font-mono); font-size: 9px;
+      color: var(--muted); letter-spacing: 1px;
+    }
+
+    /* Panel: Timelapse */
+    .ctrl-timelapse {
+      display: none; align-items: center; gap: 10px; width: 100%;
+    }
+    .tl-label { font-family: var(--font-mono); font-size: 9px; color: var(--muted); letter-spacing: 1.5px; }
+    select {
+      background: var(--surface3); color: var(--text);
+      border: 1px solid var(--border); padding: 4px 10px;
+      border-radius: 6px; font-family: var(--font-mono); font-size: 10px;
+      cursor: pointer; outline: none;
+    }
+    select:focus { border-color: var(--accent); }
+    #tl-frame-count {
+      margin-left: auto;
+      font-family: var(--font-mono); font-size: 9px;
+      color: var(--gold); letter-spacing: 1px;
+    }
+
+    /* ===================== BOTTOM BAR ===================== */
+    #bottom-bar {
+      background: var(--surface);
+      padding: 14px 24px 22px;
+      display: flex; align-items: center; justify-content: space-between;
+      flex-shrink: 0;
+      border-top: 1px solid var(--border);
+    }
+
+    /* Gallery thumb */
+    #gallery-btn {
+      width: 52px; height: 52px;
+      border-radius: 12px;
+      border: 2px solid var(--border);
+      background: var(--surface3);
+      cursor: pointer; overflow: hidden;
+      position: relative;
+      transition: border-color 0.2s, transform 0.15s;
+    }
+    #gallery-btn:hover { border-color: var(--accent); transform: scale(1.05); }
+    #gallery-btn:active { transform: scale(0.95); }
+    #gallery-canvas { width: 100%; height: 100%; object-fit: cover; display: block; }
+    #gallery-empty-icon {
+      position: absolute; inset: 0;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px; opacity: 0.4;
+    }
+    #cap-badge {
+      position: absolute; top: -5px; right: -5px;
+      background: var(--accent); color: var(--bg);
+      font-family: var(--font-mono); font-size: 8px; font-weight: 700;
+      border-radius: 8px; min-width: 16px; height: 16px;
+      display: none; align-items: center; justify-content: center;
+      padding: 0 3px; border: 1px solid var(--bg);
+    }
+
+    /* Capture button */
+    #capture-btn {
+      width: 76px; height: 76px;
+      border-radius: 50%;
+      background: var(--text);
+      border: 5px solid rgba(255,255,255,0.15);
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      position: relative; transition: transform 0.12s;
+      box-shadow: 0 0 0 1px rgba(255,255,255,0.08), 0 4px 20px rgba(0,0,0,0.5);
+    }
+    #capture-btn:hover { transform: scale(1.04); }
+    #capture-btn:active { transform: scale(0.93); }
+    #capture-btn.recording {
+      background: var(--danger);
+      animation: recRing 1.8s ease-in-out infinite;
+    }
+    @keyframes recRing {
+      0%,100% { box-shadow: 0 0 0 0 rgba(255,59,59,0.4), 0 4px 20px rgba(0,0,0,0.5); }
+      50% { box-shadow: 0 0 0 14px rgba(255,59,59,0), 0 4px 20px rgba(0,0,0,0.5); }
+    }
+    #capture-inner {
+      width: 60px; height: 60px;
+      border-radius: 50%; background: var(--text);
+      transition: border-radius 0.2s, width 0.2s, height 0.2s;
+    }
+    #capture-btn.recording #capture-inner {
+      border-radius: 8px; width: 28px; height: 28px;
+      background: #fff;
+    }
+
+    /* Switch camera */
+    #switch-btn {
+      width: 52px; height: 52px;
+      border-radius: 50%;
+      background: var(--surface3);
+      border: 1px solid var(--border);
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 24px;
+      transition: background 0.15s, transform 0.3s;
+    }
+    #switch-btn:hover { background: var(--surface2); }
+    #switch-btn:active { transform: rotate(180deg); }
+
+    /* ===================== TOAST ===================== */
+    #toast {
+      position: absolute; bottom: 130px; left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0,0,0,0.75);
+      border: 1px solid rgba(0,212,255,0.4);
+      color: var(--accent);
+      font-family: var(--font-mono); font-size: 10px;
+      letter-spacing: 2px; padding: 6px 18px;
+      border-radius: 20px; white-space: nowrap;
+      opacity: 0; transition: opacity 0.3s;
+      pointer-events: none; z-index: 200;
+    }
+    #toast.show { opacity: 1; }
+
+    /* ===================== MODALS ===================== */
+    .modal {
+      position: absolute; inset: 0;
+      background: var(--bg);
+      z-index: 300; display: none;
+      flex-direction: column;
+      border-radius: 44px; overflow: hidden;
+    }
+    .modal.open { display: flex; }
+    .modal-header {
+      padding: 16px 20px;
+      display: flex; align-items: center; justify-content: space-between;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .modal-title {
+      font-family: var(--font-mono); font-size: 13px;
+      color: var(--accent); letter-spacing: 3px;
+    }
+    .modal-close {
+      background: none; border: none; cursor: pointer;
+      color: var(--muted); font-size: 22px;
+      transition: color 0.15s;
+    }
+    .modal-close:hover { color: var(--text); }
+
+    /* Gallery modal */
+    #gallery-modal .modal-body {
+      flex: 1; overflow-y: auto; padding: 10px;
+      display: grid; grid-template-columns: repeat(3, 1fr);
+      gap: 4px; align-content: start;
+    }
+    .gal-card {
+      aspect-ratio: 1; border-radius: 8px; overflow: hidden;
+      cursor: pointer; position: relative;
+      border: 2px solid transparent;
+      transition: border-color 0.2s, transform 0.15s;
+    }
+    .gal-card:hover { border-color: var(--accent); transform: scale(1.02); }
+    .gal-card canvas { width: 100%; height: 100%; display: block; }
+    .gal-tag {
+      position: absolute; bottom: 4px; left: 4px;
+      background: rgba(0,0,0,0.75);
+      color: var(--accent); font-family: var(--font-mono);
+      font-size: 7px; letter-spacing: 1px;
+      padding: 2px 6px; border-radius: 4px;
+    }
+    .gal-time {
+      position: absolute; top: 4px; right: 4px;
+      background: rgba(0,0,0,0.6); color: var(--muted);
+      font-family: var(--font-mono); font-size: 7px;
+      padding: 2px 5px; border-radius: 3px;
+    }
+    #gallery-empty-state {
+      grid-column: 1/-1;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      padding: 60px 0; gap: 12px;
+      color: var(--muted);
+      font-family: var(--font-mono); font-size: 11px; letter-spacing: 2px;
+    }
+
+    /* Settings modal */
+    #settings-modal .modal-body {
+      flex: 1; overflow-y: auto;
+    }
+    .settings-section {
+      padding: 8px 20px 4px;
+      font-family: var(--font-mono); font-size: 8px;
+      color: var(--muted); letter-spacing: 3px;
+      margin-top: 6px;
+    }
+    .setting-row {
+      display: flex; align-items: center;
+      justify-content: space-between;
+      padding: 13px 20px;
+      border-bottom: 1px solid var(--border);
+    }
+    .setting-name {
+      font-family: var(--font-ui); font-size: 13px;
+      color: var(--text); font-weight: 400;
+    }
+    .setting-control { display: flex; align-items: center; gap: 8px; }
+    .cycle-val {
+      font-family: var(--font-mono); font-size: 11px;
+      color: var(--accent); cursor: pointer;
+      padding: 4px 12px; border: 1px solid var(--border);
+      border-radius: 6px; transition: border-color 0.15s;
+    }
+    .cycle-val:hover { border-color: var(--accent); }
+    .toggle {
+      width: 42px; height: 24px; border-radius: 12px;
+      background: var(--border); position: relative;
+      cursor: pointer; transition: background 0.2s;
+      flex-shrink: 0;
+    }
+    .toggle.on { background: var(--accent); }
+    .toggle::after {
+      content: ''; position: absolute;
+      width: 18px; height: 18px; border-radius: 50%;
+      background: white; top: 3px; left: 3px;
+      transition: left 0.2s; box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+    }
+    .toggle.on::after { left: 21px; }
+
+    /* About section */
+    .about-row {
+      padding: 14px 20px;
+      display: flex; justify-content: space-between;
+    }
+    .about-row span:first-child {
+      font-family: var(--font-mono); font-size: 11px; color: var(--muted);
+      letter-spacing: 1px;
+    }
+    .about-row span:last-child {
+      font-family: var(--font-mono); font-size: 11px; color: var(--text);
+    }
+
+    /* ===================== SCROLLBAR ===================== */
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+  </style>
+</head>
+<body>
+
+<div id="app">
+
+  <!-- STATUS BAR -->
+  <div id="status-bar">
+    <div class="logo">VT<span>CAM</span>PRO</div>
+    <div id="clock">--:--</div>
+    <div class="status-icons">
+      <span class="status-icon on" id="icon-wifi">&#x25A0;</span>
+      <span class="status-icon on" id="icon-bat">▮▮▮</span>
+    </div>
+  </div>
+
+  <!-- VIEWFINDER -->
+  <div id="viewfinder">
+    <canvas id="vf-canvas"></canvas>
+    <div id="scanlines"></div>
+    <div class="hud-corner tl"></div>
+    <div class="hud-corner tr"></div>
+    <div class="hud-corner bl"></div>
+    <div class="hud-corner br"></div>
+    <div id="focus-ring"></div>
+    <canvas id="grid-canvas"></canvas>
+
+    <!-- top HUD -->
+    <div id="vf-top">
+      <div id="mode-badge" class="vf-badge photo">PHOTO</div>
+      <div id="rec-timer">● 00:00</div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px;">
+        <div id="zoom-display">1.0×</div>
+        <div id="hdr-indicator">HDR</div>
+      </div>
+    </div>
+
+    <!-- Pro HUD -->
+    <div id="pro-hud">
+      <div>ISO <span id="ph-iso">400</span></div>
+      <div>SS  <span id="ph-ss">1/60</span></div>
+      <div>WB  <span id="ph-wb">5500K</span></div>
+      <div>EV  <span id="ph-ev">0.0</span></div>
+    </div>
+
+    <!-- Histogram -->
+    <div id="histogram"><canvas id="hist-canvas"></canvas></div>
+
+    <!-- Scene label -->
+    <div id="scene-label">🌅 LANDSCAPE</div>
+
+    <!-- Panorama guide -->
+    <div id="pano-bar">
+      <div class="pano-label">→ SWEEP SLOWLY RIGHT</div>
+      <div class="pano-track"><div class="pano-fill" id="pano-fill"></div></div>
+    </div>
+
+    <!-- Night progress -->
+    <div id="night-capture-ui">
+      <div class="night-label" id="night-label">MULTI-FRAME FUSION</div>
+      <div class="night-track"><div class="night-fill" id="night-fill"></div></div>
+    </div>
+
+    <!-- Flash burst -->
+    <div id="flash-burst"></div>
+
+    <!-- Countdown -->
+    <div id="countdown"><div id="countdown-num">3</div></div>
+  </div>
+
+  <!-- TOP CONTROLS -->
+  <div id="top-controls">
+    <button class="tc-btn" id="tc-flash" onclick="toggleFlash()">
+      <span class="t-icon">⚡</span>
+      <span class="t-label">FLASH</span>
+    </button>
+    <button class="tc-btn on" id="tc-hdr" onclick="toggleHDR()">
+      <span class="t-icon">☀</span>
+      <span class="t-label" id="hdr-lbl">HDR</span>
+    </button>
+    <button class="tc-btn" id="tc-grid" onclick="toggleGrid()">
+      <span class="t-icon">⊞</span>
+      <span class="t-label">GRID</span>
+    </button>
+    <button class="tc-btn" id="tc-timer" onclick="cycleTimer()">
+      <span class="t-icon">⏱</span>
+      <span class="t-label" id="timer-lbl">OFF</span>
+    </button>
+    <button class="tc-btn" id="tc-beauty" onclick="toggleBeauty()">
+      <span class="t-icon">✨</span>
+      <span class="t-label">BEAUTY</span>
+    </button>
+    <button class="tc-btn" onclick="openSettings()">
+      <span class="t-icon">⚙</span>
+      <span class="t-label">SETTINGS</span>
+    </button>
+  </div>
+
+  <!-- MODE BAR -->
+  <div id="mode-bar">
+    <button class="mode-tab active" onclick="setMode('PHOTO')">PHOTO</button>
+    <button class="mode-tab" onclick="setMode('VIDEO')">VIDEO</button>
+    <button class="mode-tab" onclick="setMode('PORTRAIT')">PORTRAIT</button>
+    <button class="mode-tab" onclick="setMode('NIGHT')">NIGHT</button>
+    <button class="mode-tab" onclick="setMode('PRO')">PRO</button>
+    <button class="mode-tab" onclick="setMode('PANO')">PANO</button>
+    <button class="mode-tab" onclick="setMode('SLOMO')">SLO-MO</button>
+    <button class="mode-tab" onclick="setMode('TIMELAPSE')">TIME-L</button>
+  </div>
+
+  <!-- CONTROLS PANEL -->
+  <div id="ctrl-panel">
+    <!-- PHOTO -->
+    <div class="ctrl-photo" id="cp-PHOTO">
+      <button class="ctrl-chip on" id="chip-ai" onclick="toggleChip(this,'AI SCENE',toggleAI)">
+        <span class="c-icon">🤖</span> AI SCENE
+      </button>
+      <button class="ctrl-chip on" id="chip-beauty" onclick="toggleChip(this,'BEAUTY',null)">
+        <span class="c-icon">✨</span> BEAUTY
+      </button>
+      <button class="ctrl-chip" id="chip-filter" onclick="cycleFilter()">
+        <span class="c-icon">🎨</span>
+        <span id="filter-name">VIVID</span>
+      </button>
+      <div class="ctrl-stats">
+        <div>12MP · 4:3</div>
+        <div class="dot-on">● AF</div>
+      </div>
+    </div>
+
+    <!-- VIDEO -->
+    <div class="ctrl-video" id="cp-VIDEO">
+      <button class="ctrl-chip on" id="chip-eis" onclick="toggleChip(this,'EIS',null)">
+        <span class="c-icon">🎯</span> EIS
+      </button>
+      <button class="ctrl-chip on" id="chip-mic" onclick="toggleChip(this,'MIC',null)">
+        <span class="c-icon">🎙</span> MIC
+      </button>
+      <button class="ctrl-chip" id="chip-pause" onclick="pauseVideo()" style="display:none">
+        <span class="c-icon" id="pause-icon">⏸</span>
+        <span id="pause-label">PAUSE</span>
+      </button>
+      <div class="vid-quality">
+        <div>1080p · 30fps</div>
+        <div id="vid-stat" style="color:#5a7090">STANDBY</div>
+      </div>
+    </div>
+
+    <!-- PORTRAIT -->
+    <div class="ctrl-portrait" id="cp-PORTRAIT">
+      <div class="slider-row">
+        <span class="slider-label">BLUR</span>
+        <input type="range" min="0" max="100" value="60" id="blur-range"
+               oninput="updateBlur(this.value)">
+        <span class="slider-val" id="blur-val">60</span>
+      </div>
+      <div class="slider-row">
+        <span class="slider-label">BOKEH</span>
+        <input type="range" min="1" max="5" value="3" id="bokeh-range"
+               oninput="updateBokeh(this.value)">
+        <span class="slider-val" id="bokeh-val">●●●</span>
+      </div>
+    </div>
+
+    <!-- NIGHT -->
+    <div class="ctrl-night" id="cp-NIGHT">
+      <div class="night-info">🌙 MULTI-FRAME FUSION MODE</div>
+      <div class="night-sub">8 frames · AI denoising · Brightness boost</div>
+    </div>
+
+    <!-- PRO -->
+    <div class="ctrl-pro" id="cp-PRO">
+      <div class="pro-row">
+        <span class="pro-label">ISO</span>
+        <input type="range" class="gold" min="50" max="6400" step="50" value="400"
+               oninput="updatePro('iso',this.value)">
+        <span class="pro-val" id="pv-iso">400</span>
+      </div>
+      <div class="pro-row">
+        <span class="pro-label">SS</span>
+        <input type="range" class="gold" min="1" max="10" value="4"
+               oninput="updatePro('ss',this.value)">
+        <span class="pro-val" id="pv-ss">1/60</span>
+      </div>
+      <div class="pro-row">
+        <span class="pro-label">WB</span>
+        <input type="range" class="gold" min="2000" max="8000" step="100" value="5500"
+               oninput="updatePro('wb',this.value)">
+        <span class="pro-val" id="pv-wb">5500K</span>
+      </div>
+      <div class="pro-row">
+        <span class="pro-label">EV</span>
+        <input type="range" class="gold" min="-30" max="30" value="0"
+               oninput="updatePro('ev',this.value)">
+        <span class="pro-val" id="pv-ev">0.0</span>
+      </div>
+    </div>
+
+    <!-- PANO -->
+    <div class="ctrl-pano" id="cp-PANO">
+      <div class="pano-hint">TAP CAPTURE TO BEGIN PANORAMA</div>
+      <div class="pano-sub">Hold phone steady · Move slowly left → right</div>
+    </div>
+
+    <!-- SLO-MO -->
+    <div class="ctrl-slomo" id="cp-SLOMO">
+      <button class="fps-btn on" id="fps120" onclick="setFPS(120)">120fps</button>
+      <button class="fps-btn" id="fps240" onclick="setFPS(240)">240fps</button>
+      <button class="fps-btn" id="fps480" onclick="setFPS(480)">480fps</button>
+      <div class="slomo-tag" id="slomo-tag">4× SLOW</div>
+    </div>
+
+    <!-- TIMELAPSE -->
+    <div class="ctrl-timelapse" id="cp-TIMELAPSE">
+      <span class="tl-label">INTERVAL</span>
+      <select id="tl-select">
+        <option value="1">1 sec</option>
+        <option value="5" selected>5 sec</option>
+        <option value="10">10 sec</option>
+        <option value="30">30 sec</option>
+        <option value="60">1 min</option>
+      </select>
+      <div id="tl-frame-count">0 FRAMES</div>
+    </div>
+  </div>
+
+  <!-- BOTTOM BAR -->
+  <div id="bottom-bar">
+    <div id="gallery-btn" onclick="openGallery()" title="Gallery">
+      <canvas id="gallery-canvas" width="52" height="52"></canvas>
+      <div id="gallery-empty-icon">🖼</div>
+      <div id="cap-badge"></div>
+    </div>
+    <div id="capture-btn" onclick="handleCapture()">
+      <div id="capture-inner"></div>
+    </div>
+    <div id="switch-btn" onclick="switchCamera()" title="Switch Camera">🔄</div>
+  </div>
+
+  <!-- TOAST -->
+  <div id="toast"></div>
+
+  <!-- GALLERY MODAL -->
+  <div id="gallery-modal" class="modal">
+    <div class="modal-header">
+      <span class="modal-title">📷 GALLERY</span>
+      <button class="modal-close" onclick="closeGallery()">✕</button>
+    </div>
+    <div class="modal-body" id="gallery-grid">
+      <div id="gallery-empty-state">
+        <div style="font-size:40px;opacity:0.3">📭</div>
+        <div>NO CAPTURES YET</div>
+        <div style="color:var(--muted);font-size:9px">TAKE YOUR FIRST PHOTO</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SETTINGS MODAL -->
+  <div id="settings-modal" class="modal">
+    <div class="modal-header">
+      <span class="modal-title">⚙ SETTINGS</span>
+      <button class="modal-close" onclick="closeSettings()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="settings-section">CAMERA</div>
+      <div class="setting-row">
+        <span class="setting-name">Resolution</span>
+        <div class="setting-control">
+          <span class="cycle-val" onclick="cycleSet(this,['12MP','48MP','64MP','108MP'])">12MP</span>
+        </div>
+      </div>
+      <div class="setting-row">
+        <span class="setting-name">Aspect Ratio</span>
+        <div class="setting-control">
+          <span class="cycle-val" onclick="cycleSet(this,['4:3','16:9','1:1','9:16'])">4:3</span>
+        </div>
+      </div>
+      <div class="setting-row">
+        <span class="setting-name">Video Quality</span>
+        <div class="setting-control">
+          <span class="cycle-val" onclick="cycleSet(this,['720p','1080p','4K','8K'])">1080p</span>
+        </div>
+      </div>
+      <div class="setting-row">
+        <span class="setting-name">Shutter Sound</span>
+        <div class="setting-control">
+          <span class="cycle-val" onclick="cycleSet(this,['ON','OFF'])">ON</span>
+        </div>
+      </div>
+
+      <div class="settings-section">AI FEATURES</div>
+      <div class="setting-row">
+        <span class="setting-name">AI Scene Detection</span>
+        <div class="setting-control"><div class="toggle on" onclick="this.classList.toggle('on')"></div></div>
+      </div>
+      <div class="setting-row">
+        <span class="setting-name">Auto HDR</span>
+        <div class="setting-control"><div class="toggle on" onclick="this.classList.toggle('on')"></div></div>
+      </div>
+      <div class="setting-row">
+        <span class="setting-name">Face Detection</span>
+        <div class="setting-control"><div class="toggle on" onclick="this.classList.toggle('on')"></div></div>
+      </div>
+      <div class="setting-row">
+        <span class="setting-name">Beauty Mode</span>
+        <div class="setting-control"><div class="toggle" onclick="this.classList.toggle('on')"></div></div>
+      </div>
+      <div class="setting-row">
+        <span class="setting-name">Night Vision AI</span>
+        <div class="setting-control"><div class="toggle on" onclick="this.classList.toggle('on')"></div></div>
+      </div>
+
+      <div class="settings-section">STORAGE</div>
+      <div class="setting-row">
+        <span class="setting-name">Save RAW</span>
+        <div class="setting-control"><div class="toggle" onclick="this.classList.toggle('on')"></div></div>
+      </div>
+      <div class="setting-row">
+        <span class="setting-name">Location Tags</span>
+        <div class="setting-control"><div class="toggle on" onclick="this.classList.toggle('on')"></div></div>
+      </div>
+      <div class="setting-row">
+        <span class="setting-name">Watermark</span>
+        <div class="setting-control"><div class="toggle" onclick="this.classList.toggle('on')"></div></div>
+      </div>
+
+      <div class="settings-section">ABOUT</div>
+      <div class="about-row"><span>APP NAME</span><span>VTcampro</span></div>
+      <div class="about-row"><span>VERSION</span><span>1.0.0</span></div>
+      <div class="about-row"><span>BUILD</span><span>2025.05</span></div>
+      <div class="about-row"><span>ENGINE</span><span>Canvas2D + AI</span></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ===================== STATE =====================
+const S = {
+  mode: 'PHOTO',
+  flash: false, hdr: true, grid: false,
+  timerIdx: 0, timerVals: [0,3,10],
+  beauty: true, aiScene: true,
+  filters: ['VIVID','NATURAL','MONO','CINEMATIC','WARM','FADED'],
+  filterIdx: 0,
+  blurAmount: 60, bokehLevel: 3,
+  fps: 120,
+  recording: false, paused: false,
+  recSecs: 0, recInterval: null,
+  panoRunning: false, panoProgress: 0, panoInterval: null,
+  nightRunning: false,
+  tlRunning: false, tlCount: 0, tlInterval: null,
+  captures: [], capCount: 0,
+  front: false,
+  iso: 400, ss: 4, wb: 5500, ev: 0,
+  scenes: ['🌅 LANDSCAPE','🌆 CITY','🍱 FOOD','🌙 NIGHT','👤 PORTRAIT','🌲 NATURE','⛅ SKY','🏙 URBAN','🌊 SEA'],
+  sceneIdx: 0, sceneRotate: null,
+  zoom: 1.0,
+};
+
+// ===================== CANVAS SETUP =====================
+const vfc = document.getElementById('vf-canvas');
+const ctx = vfc.getContext('2d');
+let raf, tick = 0;
+
+function resizeCanvas() {
+  vfc.width = vfc.offsetWidth;
+  vfc.height = vfc.offsetHeight;
+}
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
+
+// Particles for default scene
+const particles = Array.from({length: 40}, () => ({
+  x: Math.random(), y: Math.random(),
+  vx: (Math.random()-0.5)*0.0006,
+  vy: (Math.random()-0.5)*0.0006,
+  r: Math.random()*2.5+0.5,
+  a: Math.random(),
+  hue: 160 + Math.random()*40
+}));
+
+// ===================== VIEWFINDER DRAW =====================
+function drawVF() {
+  const w = vfc.width, h = vfc.height;
+  ctx.clearRect(0,0,w,h);
+
+  const m = S.mode;
+
+  if (m === 'NIGHT') {
+    ctx.fillStyle = '#010308'; ctx.fillRect(0,0,w,h);
+    // Star field
+    for (let i = 0; i < 80; i++) {
+      const sx = (Math.sin(i * 47.3) * 0.5 + 0.5) * w;
+      const sy = (Math.cos(i * 23.7) * 0.5 + 0.5) * h * 0.65;
+      const brightness = 0.2 + 0.8 * Math.abs(Math.sin(tick * 0.025 + i * 0.7));
+      ctx.fillStyle = `rgba(${180+i%70},${190+i%60},255,${brightness})`;
+      ctx.beginPath(); ctx.arc(sx, sy, 0.7 + (i%3)*0.4, 0, Math.PI*2); ctx.fill();
+    }
+    // Moon
+    ctx.fillStyle = '#dde8ff';
+    ctx.beginPath(); ctx.arc(w*0.78, h*0.14, 22, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#010308';
+    ctx.beginPath(); ctx.arc(w*0.78+10, h*0.14-4, 18, 0, Math.PI*2); ctx.fill();
+    // City silhouette
+    ctx.fillStyle = '#0a0c14';
+    const buildings = [0,35,45,30,60,40,25,55,50,35,70,30,45,65,40,30,55,35,50,60,40,45,70,30];
+    let bx = 0;
+    for (let i = 0; i < buildings.length; i++) {
+      const bw = w / buildings.length;
+      ctx.fillRect(bx, h - buildings[i] - h*0.18, bw-1, buildings[i]+h*0.18);
+      bx += bw;
+    }
+    // Ground
+    ctx.fillStyle = '#050810';
+    ctx.fillRect(0, h*0.82, w, h*0.18);
+    // Lights
+    for (let i = 0; i < 15; i++) {
+      const lx = (i/15)*w + Math.sin(i*17)*20;
+      const ly = h*0.82 - buildings[i%buildings.length]*0.5 - 20;
+      ctx.fillStyle = `rgba(255,200,100,${0.4+0.3*Math.sin(tick*0.04+i)})`;
+      ctx.fillRect(lx, ly, 2, 2);
+    }
+
+  } else if (m === 'PORTRAIT') {
+    // Background (blurred)
+    const blurPx = Math.round(S.blurAmount / 5);
+    ctx.filter = `blur(${blurPx}px) saturate(0.6)`;
+    const bg = ctx.createLinearGradient(0,0,w,h);
+    bg.addColorStop(0, '#c8d8e8'); bg.addColorStop(1, '#e8d0c0');
+    ctx.fillStyle = bg; ctx.fillRect(0,0,w,h);
+    for (let i = 0; i < 10; i++) {
+      ctx.fillStyle = `hsl(${i*34+tick*0.1},45%,${65+i*2}%)`;
+      ctx.beginPath();
+      ctx.arc((i%5)*(w/4)+w/8, h*0.3 + Math.floor(i/5)*h*0.35, 55+i*8, 0, Math.PI*2);
+      ctx.fill();
+    }
+    ctx.filter = 'none';
+    // Subject silhouette
+    ctx.fillStyle = '#c49a7a';
+    ctx.beginPath(); ctx.arc(w/2, h*0.38, 55, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#8B5E3C';
+    ctx.beginPath(); ctx.arc(w/2, h*0.33, 38, Math.PI, 0); ctx.fill();
+    ctx.fillStyle = '#e8c4a0';
+    ctx.beginPath();
+    ctx.moveTo(w/2-24, h*0.48);
+    ctx.quadraticCurveTo(w/2, h*0.52, w/2+24, h*0.48);
+    ctx.lineTo(w/2+30, h*0.78); ctx.lineTo(w/2-30, h*0.78);
+    ctx.closePath(); ctx.fill();
+    // Bokeh dots
+    for (let i = 0; i < 20; i++) {
+      const bx = Math.sin(i * 31.4) * 0.45 * w + w/2;
+      const by = Math.cos(i * 19.1) * 0.45 * h + h/2;
+      const sz = (S.bokehLevel * 3) + i % 8;
+      ctx.strokeStyle = `rgba(255,240,220,${0.15+0.12*Math.sin(tick*0.04+i)})`;
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.arc(bx, by, sz, 0, Math.PI*2); ctx.stroke();
+    }
+    // Face box
+    ctx.strokeStyle = 'rgba(0,255,136,0.8)';
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([6,4]);
+    ctx.strokeRect(w/2-50, h*0.24, 100, 90);
+    ctx.setLineDash([]);
+    ctx.fillStyle = 'rgba(0,255,136,0.8)';
+    ctx.font = '700 8px monospace';
+    ctx.fillText('FACE ●', w/2-20, h*0.24-4);
+
+  } else if (m === 'PRO') {
+    const ev = S.ev / 10;
+    const br = 0.4 + ev * 0.05 + (S.iso / 6400) * 0.15;
+    // Sky
+    const skyC = ctx.createLinearGradient(0,0,0,h*0.6);
+    skyC.addColorStop(0, `rgba(${Math.round(20*br)},${Math.round(40*br)},${Math.round(80*br)},1)`);
+    skyC.addColorStop(1, `rgba(${Math.round(40*br)},${Math.round(60*br)},${Math.round(80*br)},1)`);
+    ctx.fillStyle = skyC; ctx.fillRect(0,0,w,h*0.6);
+    // Ground
+    const gndC = ctx.createLinearGradient(0,h*0.6,0,h);
+    gndC.addColorStop(0, `rgba(${Math.round(20*br)},${Math.round(50*br)},${Math.round(20*br)},1)`);
+    gndC.addColorStop(1, `rgba(${Math.round(15*br)},${Math.round(35*br)},${Math.round(15*br)},1)`);
+    ctx.fillStyle = gndC; ctx.fillRect(0,h*0.6,w,h*0.4);
+    // Horizon
+    ctx.strokeStyle = `rgba(${Math.round(100*br)},${Math.round(180*br)},${Math.round(100*br)},0.4)`;
+    ctx.lineWidth = 1; ctx.beginPath();
+    ctx.moveTo(0,h*0.6); ctx.lineTo(w,h*0.6); ctx.stroke();
+    // Crosshair
+    ctx.strokeStyle = 'rgba(255,210,0,0.5)'; ctx.lineWidth = 0.5;
+    ctx.setLineDash([4,4]);
+    ctx.beginPath(); ctx.moveTo(w/2,0); ctx.lineTo(w/2,h); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0,h/2); ctx.lineTo(w,h/2); ctx.stroke();
+    ctx.setLineDash([]);
+    drawHistogram();
+
+  } else if (m === 'PANO') {
+    ctx.fillStyle = '#0e1a0e'; ctx.fillRect(0,0,w,h);
+    const p = S.panoProgress / 100;
+    for (let col = 0; col < 10; col++) {
+      const fx = col / 10;
+      if (fx < p + 0.12) {
+        const alpha = Math.min(1, (p+0.12-fx)*10);
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = `hsl(${100+col*12},${35+col*2}%,${18+col*3}%)`;
+        ctx.fillRect(col*(w/10), 0, w/10+1, h);
+        if (fx < p - 0.05) {
+          ctx.strokeStyle = 'rgba(0,212,255,0.25)';
+          ctx.lineWidth = 1; ctx.setLineDash([3,5]);
+          ctx.beginPath(); ctx.moveTo((col+1)*(w/10),0); ctx.lineTo((col+1)*(w/10),h); ctx.stroke();
+          ctx.setLineDash([]);
+        }
+      }
+    }
+    ctx.globalAlpha = 1;
+    // Guide arrow
+    if (S.panoRunning) {
+      const arrowX = S.panoProgress * w / 100;
+      ctx.fillStyle = 'rgba(0,255,136,0.9)';
+      ctx.beginPath();
+      ctx.moveTo(arrowX+20, h/2);
+      ctx.lineTo(arrowX+8, h/2-12);
+      ctx.lineTo(arrowX+8, h/2+12);
+      ctx.closePath(); ctx.fill();
+    }
+
+  } else if (m === 'SLOMO') {
+    ctx.fillStyle = '#080d18'; ctx.fillRect(0,0,w,h);
+    const speedFactor = S.recording ? 0.25 : 1;
+    for (let i = 0; i < 15; i++) {
+      const y = ((i/15*h + tick*speedFactor*0.8) % h + h) % h;
+      ctx.strokeStyle = `rgba(0,${100+i*8},${180+i*4},${0.05+i*0.008})`;
+      ctx.lineWidth = 0.8+i*0.15;
+      ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(w,y+20); ctx.stroke();
+    }
+    // FPS label
+    ctx.fillStyle = 'rgba(0,212,255,0.7)';
+    ctx.font = `900 11px 'Share Tech Mono'`;
+    ctx.fillText(`${S.fps}FPS · ${S.fps === 120 ? '4' : S.fps === 240 ? '8' : '16'}× SLOW MOTION`, 14, h-16);
+
+  } else if (m === 'TIMELAPSE') {
+    ctx.fillStyle = '#060810'; ctx.fillRect(0,0,w,h);
+    const tFast = tick * (S.tlRunning ? 6 : 1);
+    // Animated sky
+    for (let y = 0; y < h*0.55; y += 3) {
+      const hue = ((tFast * 1.5 + y * 0.5) % 360);
+      ctx.fillStyle = `hsla(${hue},55%,${18+y/h*12}%,0.04)`;
+      ctx.fillRect(0,y,w,3);
+    }
+    // Ground
+    ctx.fillStyle = '#0a110a'; ctx.fillRect(0,h*0.55,w,h*0.45);
+    // "Fast" stars moving
+    for (let i = 0; i < 25; i++) {
+      const sx = ((Math.sin(i*43)*0.5+0.5)*w*1.2 - tFast*(0.3+i%4*0.1)) % w;
+      const sy = (Math.cos(i*29)*0.5+0.5)*h*0.5;
+      ctx.fillStyle = `rgba(200,220,255,${0.5+0.4*Math.abs(Math.sin(tFast*0.1+i))})`;
+      ctx.beginPath(); ctx.arc((sx+w)%w, sy, 0.7, 0, Math.PI*2); ctx.fill();
+    }
+    if (S.tlRunning) {
+      ctx.fillStyle = 'rgba(255,200,50,0.85)';
+      ctx.font = `700 10px 'Share Tech Mono'`;
+      ctx.fillText(`● FRAME ${S.tlCount}`, 14, 26);
+    }
+
+  } else {
+    // Default PHOTO scene
+    const t = tick * 0.004;
+    const grad = ctx.createLinearGradient(0,0,0,h);
+    grad.addColorStop(0, `hsl(${195+Math.sin(t)*12},${45+Math.sin(t)*8}%,${17+Math.sin(t)*3}%)`);
+    grad.addColorStop(0.55, `hsl(${155+Math.cos(t*0.7)*10},${38+Math.cos(t)*5}%,${20+Math.cos(t)*3}%)`);
+    grad.addColorStop(1, `hsl(135,32%,${13+Math.sin(t*0.5)*2}%)`);
+    ctx.fillStyle = grad; ctx.fillRect(0,0,w,h);
+    // Floating particles
+    particles.forEach(p => {
+      p.x = (p.x + p.vx + 1) % 1;
+      p.y = (p.y + p.vy + 1) % 1;
+      ctx.fillStyle = `hsla(${p.hue + Math.sin(tick*0.01+p.a)*20},60%,65%,${p.a*0.35})`;
+      ctx.beginPath(); ctx.arc(p.x*w, p.y*h, p.r, 0, Math.PI*2); ctx.fill();
+    });
+    // Subtle horizon
+    ctx.strokeStyle = 'rgba(100,220,160,0.12)'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(0,h*0.58); ctx.lineTo(w,h*0.58); ctx.stroke();
+    // Subject guide oval
+    ctx.strokeStyle = 'rgba(255,255,255,0.08)'; ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.ellipse(w/2, h*0.42, w*0.28, h*0.34, 0, 0, Math.PI*2); ctx.stroke();
+  }
+
+  // ---- FILTER OVERLAYS ----
+  applyFilter(w, h);
+
+  tick++;
+  raf = requestAnimationFrame(drawVF);
+}
+drawVF();
+
+function applyFilter(w, h) {
+  const f = S.filters[S.filterIdx];
+  if (f === 'MONO') {
+    const id = ctx.getImageData(0,0,w,h);
+    const d = id.data;
+    for (let i = 0; i < d.length; i+=4) {
+      const g = d[i]*0.299 + d[i+1]*0.587 + d[i+2]*0.114;
+      d[i] = d[i+1] = d[i+2] = g;
+    }
+    ctx.putImageData(id,0,0);
+  } else if (f === 'WARM') {
+    ctx.fillStyle = 'rgba(255,90,0,0.07)'; ctx.fillRect(0,0,w,h);
+  } else if (f === 'CINEMATIC') {
+    ctx.fillStyle = 'rgba(0,0,60,0.09)'; ctx.fillRect(0,0,w,h);
+    ctx.fillStyle = 'rgba(0,0,0,0.38)';
+    ctx.fillRect(0,0,w,h*0.09);
+    ctx.fillRect(0,h*0.91,w,h*0.09);
+  } else if (f === 'FADED') {
+    ctx.fillStyle = 'rgba(200,190,180,0.08)'; ctx.fillRect(0,0,w,h);
+  } else if (f === 'VIVID') {
+    ctx.fillStyle = 'rgba(0,30,0,0.03)'; ctx.fillRect(0,0,w,h);
+  }
+}
+
+// Histogram for Pro mode
+function drawHistogram() {
+  const hc = document.getElementById('hist-canvas');
+  const hctx = hc.getContext('2d');
+  hc.width = hc.offsetWidth; hc.height = hc.offsetHeight;
+  const hw = hc.width, hh = hc.height;
+  hctx.clearRect(0,0,hw,hh);
+  for (let i = 0; i < 32; i++) {
+    const hv = Math.random() * hh * (0.3 + S.iso/6400*0.7);
+    hctx.fillStyle = 'rgba(255,200,50,0.6)';
+    hctx.fillRect(i*(hw/32), hh-hv, hw/32-1, hv);
+  }
+}
+
+// ===================== GRID =====================
+function drawGrid() {
+  const gc = document.getElementById('grid-canvas');
+  gc.width = vfc.offsetWidth; gc.height = vfc.offsetHeight;
+  const gctx = gc.getContext('2d');
+  const gw = gc.width, gh = gc.height;
+  gctx.clearRect(0,0,gw,gh);
+  gctx.strokeStyle = 'rgba(255,255,255,0.18)'; gctx.lineWidth = 0.5;
+  [gw/3, 2*gw/3].forEach(x => {
+    gctx.beginPath(); gctx.moveTo(x,0); gctx.lineTo(x,gh); gctx.stroke();
+  });
+  [gh/3, 2*gh/3].forEach(y => {
+    gctx.beginPath(); gctx.moveTo(0,y); gctx.lineTo(gw,y); gctx.stroke();
+  });
+}
+
+// ===================== TAP TO FOCUS =====================
+document.getElementById('viewfinder').addEventListener('click', e => {
+  const rect = e.currentTarget.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  const y = e.clientY - rect.top;
+  const fr = document.getElementById('focus-ring');
+  fr.style.left = x + 'px';
+  fr.style.top = y + 'px';
+  fr.style.transform = 'translate(-50%,-50%)';
+  fr.style.width = '72px'; fr.style.height = '72px';
+  fr.classList.remove('locked');
+  setTimeout(() => {
+    fr.style.width = '56px'; fr.style.height = '56px';
+    fr.classList.add('locked');
+  }, 300);
+  setTimeout(() => fr.classList.remove('locked'), 2200);
+  toast('AF LOCKED');
+});
+
+// Pinch-zoom (touch)
+let pinchDist = null;
+document.getElementById('viewfinder').addEventListener('touchstart', e => {
+  if (e.touches.length === 2) {
+    pinchDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX,
+                           e.touches[0].clientY - e.touches[1].clientY);
+  }
+}, {passive:true});
+document.getElementById('viewfinder').addEventListener('touchmove', e => {
+  if (e.touches.length === 2 && pinchDist) {
+    const d = Math.hypot(e.touches[0].clientX - e.touches[1].clientX,
+                         e.touches[0].clientY - e.touches[1].clientY);
+    S.zoom = Math.max(0.5, Math.min(10, S.zoom * (d / pinchDist)));
+    pinchDist = d;
+    document.getElementById('zoom-display').textContent = S.zoom.toFixed(1) + '×';
+  }
+}, {passive:true});
+
+// ===================== CLOCK =====================
+function updateClock() {
+  const now = new Date();
+  const h = String(now.getHours()).padStart(2,'0');
+  const m = String(now.getMinutes()).padStart(2,'0');
+  document.getElementById('clock').textContent = h + ':' + m;
+}
+updateClock();
+setInterval(updateClock, 1000);
+
+// ===================== MODES =====================
+const modeNames = {
+  PHOTO:'PHOTO', VIDEO:'VIDEO', PORTRAIT:'PORTRAIT', NIGHT:'NIGHT',
+  PRO:'PRO', PANO:'PANO', SLOMO:'SLO-MO', TIMELAPSE:'TIME-L'
+};
+const badgeClass = {
+  PHOTO:'photo', VIDEO:'video', PORTRAIT:'portrait', NIGHT:'night',
+  PRO:'pro', PANO:'pano', SLOMO:'slomo', TIMELAPSE:'timelapse'
+};
+
+function setMode(mode) {
+  if (S.recording) stopRecording();
+  if (S.panoRunning) stopPano();
+  if (S.tlRunning) stopTimelapse();
+  if (S.nightRunning) stopNightCapture();
+  S.mode = mode;
+
+  // Update tabs
+  document.querySelectorAll('.mode-tab').forEach(t => {
+    t.classList.toggle('active',
+      t.textContent.trim() === (modeNames[mode] || mode));
+  });
+
+  // Hide all panels
+  ['PHOTO','VIDEO','PORTRAIT','NIGHT','PRO','PANO','SLOMO','TIMELAPSE'].forEach(m => {
+    const el = document.getElementById('cp-'+m);
+    if (el) { el.style.display = 'none'; }
+  });
+  const panel = document.getElementById('cp-'+mode);
+  if (panel) panel.style.display = 'flex';
+
+  // Badge
+  const badge = document.getElementById('mode-badge');
+  badge.textContent = modeNames[mode] || mode;
+  badge.className = 'vf-badge ' + (badgeClass[mode] || 'photo');
+
+  // Pro HUD & histogram
+  document.getElementById('pro-hud').className = mode === 'PRO' ? 'on' : '';
+  document.getElementById('histogram').className = mode === 'PRO' ? 'on' : '';
+
+  // Pano bar
+  document.getElementById('pano-bar').className = mode === 'PANO' ? 'on' : '';
+
+  // Capture btn appearance
+  document.getElementById('capture-btn').classList.remove('recording');
+}
+
+// ===================== CAPTURE / RECORD =====================
+function handleCapture() {
+  const m = S.mode;
+  if (S.timerVals[S.timerIdx] > 0 && !S.recording && m !== 'PANO' && m !== 'TIMELAPSE') {
+    runCountdown(() => doCapture());
+    return;
+  }
+  if (m === 'VIDEO' || m === 'SLOMO') { toggleRecording(); return; }
+  if (m === 'PANO')      { togglePano(); return; }
+  if (m === 'TIMELAPSE') { toggleTimelapse(); return; }
+  if (m === 'NIGHT')     { captureNight(); return; }
+  doCapture();
+}
+
+function doCapture() {
+  if (S.flash) triggerFlash();
+  const btn = document.getElementById('capture-btn');
+  btn.style.transform = 'scale(0.88)';
+  setTimeout(() => btn.style.transform = '', 130);
+  saveCapture(S.mode);
+  toast('📸 SAVED · ' + S.mode);
+}
+
+function saveCapture(tag) {
+  const tc = document.createElement('canvas');
+  tc.width = 120; tc.height = 120;
+  tc.getContext('2d').drawImage(vfc, 0, 0, vfc.width, vfc.height, 0, 0, 120, 120);
+  S.captures.unshift({ canvas: tc, tag, time: new Date().toLocaleTimeString() });
+  S.capCount++;
+  // Update gallery thumb
+  const gc = document.getElementById('gallery-canvas');
+  gc.getContext('2d').drawImage(vfc, 0, 0, vfc.width, vfc.height, 0, 0, 52, 52);
+  document.getElementById('gallery-empty-icon').style.display = 'none';
+  const badge = document.getElementById('cap-badge');
+  badge.style.display = 'flex';
+  badge.textContent = S.capCount > 99 ? '99+' : S.capCount;
+}
+
+// ===================== RECORDING =====================
+function toggleRecording() {
+  if (!S.recording) {
+    S.recording = true; S.paused = false;
+    S.recSecs = 0;
+    document.getElementById('capture-btn').classList.add('recording');
+    const badge = document.getElementById('mode-badge');
+    badge.textContent = '● REC';
+    badge.className = 'vf-badge rec';
+    const td = document.getElementById('rec-timer');
+    td.style.display = 'block';
+    document.getElementById('chip-pause').style.display = 'flex';
+    document.getElementById('vid-stat').textContent = 'RECORDING';
+    document.getElementById('vid-stat').style.color = 'var(--danger)';
+    S.recInterval = setInterval(() => {
+      if (!S.paused) S.recSecs++;
+      const mm = String(Math.floor(S.recSecs/60)).padStart(2,'0');
+      const ss = String(S.recSecs%60).padStart(2,'0');
+      td.textContent = `● ${mm}:${ss}`;
+    }, 1000);
+    toast('● RECORDING STARTED');
+  } else {
+    stopRecording();
+    saveCapture(S.mode === 'SLOMO' ? 'SLO-MO' : 'VID');
+    toast('⏹ VIDEO SAVED');
+  }
+}
+
+function stopRecording() {
+  S.recording = false; S.paused = false;
+  clearInterval(S.recInterval);
+  document.getElementById('capture-btn').classList.remove('recording');
+  const badge = document.getElementById('mode-badge');
+  badge.textContent = modeNames[S.mode] || S.mode;
+  badge.className = 'vf-badge ' + (badgeClass[S.mode] || 'video');
+  document.getElementById('rec-timer').style.display = 'none';
+  document.getElementById('chip-pause').style.display = 'none';
+  document.getElementById('vid-stat').textContent = 'STANDBY';
+  document.getElementById('vid-stat').style.color = 'var(--muted)';
+}
+
+function pauseVideo() {
+  S.paused = !S.paused;
+  document.getElementById('pause-icon').textContent = S.paused ? '▶' : '⏸';
+  document.getElementById('pause-label').textContent = S.paused ? 'RESUME' : 'PAUSE';
+  document.getElementById('vid-stat').textContent = S.paused ? 'PAUSED' : 'RECORDING';
+  toast(S.paused ? '⏸ PAUSED' : '▶ RESUMED');
+}
+
+// ===================== FLASH =====================
+function triggerFlash() {
+  const fe = document.getElementById('flash-burst');
+  fe.style.opacity = 1;
+  setTimeout(() => fe.style.opacity = 0, 100);
+}
+
+// ===================== CONTROLS =====================
+function toggleFlash() {
+  S.flash = !S.flash;
+  document.getElementById('tc-flash').classList.toggle('on', S.flash);
+  toast(S.flash ? '⚡ FLASH ON' : 'FLASH OFF');
+}
+
+function toggleHDR() {
+  S.hdr = !S.hdr;
+  document.getElementById('tc-hdr').classList.toggle('on', S.hdr);
+  document.getElementById('hdr-indicator').classList.toggle('on', S.hdr);
+  toast(S.hdr ? 'HDR ON' : 'HDR OFF');
+}
+
+function toggleGrid() {
+  S.grid = !S.grid;
+  document.getElementById('tc-grid').classList.toggle('on', S.grid);
+  const gc = document.getElementById('grid-canvas');
+  gc.classList.toggle('on', S.grid);
+  if (S.grid) drawGrid();
+  toast(S.grid ? 'GRID ON' : 'GRID OFF');
+}
+
+function cycleTimer() {
+  S.timerIdx = (S.timerIdx + 1) % S.timerVals.length;
+  const labels = ['OFF', '3s', '10s'];
+  document.getElementById('timer-lbl').textContent = labels[S.timerIdx];
+  document.getElementById('tc-timer').classList.toggle('on', S.timerIdx > 0);
+  toast('TIMER: ' + labels[S.timerIdx]);
+}
+
+function toggleBeauty() {
+  S.beauty = !S.beauty;
+  document.getElementById('tc-beauty').classList.toggle('on', S.beauty);
+  toast(S.beauty ? '✨ BEAUTY ON' : 'BEAUTY OFF');
+}
+
+function toggleChip(el, name, fn) {
+  el.classList.toggle('on');
+  if (fn) fn();
+  toast(name + (el.classList.contains('on') ? ' ON' : ' OFF'));
+}
+
+function cycleFilter() {
+  S.filterIdx = (S.filterIdx + 1) % S.filters.length;
+  document.getElementById('filter-name').textContent = S.filters[S.filterIdx];
+  toast('🎨 ' + S.filters[S.filterIdx]);
+}
+
+function toggleAI() {
+  // AI scene rotation toggled externally via chip
+}
+
+// ===================== PORTRAIT CONTROLS =====================
+function updateBlur(v) {
+  S.blurAmount = parseInt(v);
+  document.getElementById('blur-val').textContent = v;
+}
+
+function updateBokeh(v) {
+  S.bokehLevel = parseInt(v);
+  const dots = ['', '●', '●●', '●●●', '●●●●', '●●●●●'];
+  document.getElementById('bokeh-val').textContent = dots[v] || v;
+}
+
+// ===================== PRO MODE =====================
+const ssMap = { 1:'1/4000', 2:'1/1000', 3:'1/250', 4:'1/60', 5:'1/30', 6:'1/15', 7:'1/8', 8:'1/4', 9:'1/2', 10:'1s' };
+function updatePro(key, raw) {
+  const v = parseInt(raw);
+  if (key === 'iso') {
+    S.iso = v;
+    document.getElementById('pv-iso').textContent = v;
+    document.getElementById('ph-iso').textContent = v;
+  } else if (key === 'ss') {
+    S.ss = v;
+    const lbl = ssMap[v] || '1/60';
+    document.getElementById('pv-ss').textContent = lbl;
+    document.getElementById('ph-ss').textContent = lbl;
+  } else if (key === 'wb') {
+    S.wb = v;
+    document.getElementById('pv-wb').textContent = v + 'K';
+    document.getElementById('ph-wb').textContent = v + 'K';
+  } else if (key === 'ev') {
+    S.ev = v;
+    const evStr = (v / 10).toFixed(1);
+    document.getElementById('pv-ev').textContent = evStr;
+    document.getElementById('ph-ev').textContent = evStr;
+  }
+}
+
+// ===================== NIGHT MODE =====================
+function captureNight() {
+  if (S.nightRunning) return;
+  S.nightRunning = true;
+  const ui = document.getElementById('night-capture-ui');
+  const fill = document.getElementById('night-fill');
+  const label = document.getElementById('night-label');
+  ui.classList.add('on');
+  let progress = 0;
+  const frames = 8;
+  const iv = setInterval(() => {
+    progress += 100 / frames;
+    fill.style.width = Math.min(progress, 100) + '%';
+    const frame = Math.ceil(progress / (100/frames));
+    label.textContent = `CAPTURING FRAME ${Math.min(frame,frames)}/${frames}`;
+    if (progress >= 100) {
+      clearInterval(iv);
+      label.textContent = 'PROCESSING · AI DENOISING...';
+      setTimeout(() => {
+        ui.classList.remove('on');
+        fill.style.width = '0%';
+        label.textContent = 'MULTI-FRAME FUSION';
+        S.nightRunning = false;
+        saveCapture('NIGHT');
+        toast('🌙 NIGHT PHOTO SAVED');
+      }, 700);
+    }
+  }, 200);
+}
+
+function stopNightCapture() {
+  S.nightRunning = false;
+  document.getElementById('night-capture-ui').classList.remove('on');
+}
+
+// ===================== PANORAMA =====================
+function togglePano() {
+  if (!S.panoRunning) {
+    S.panoRunning = true; S.panoProgress = 0;
+    toast('→ SWEEP SLOWLY RIGHT');
+    S.panoInterval = setInterval(() => {
+      S.panoProgress = Math.min(S.panoProgress + 1.2, 100);
+      document.getElementById('pano-fill').style.width = S.panoProgress + '%';
+      if (S.panoProgress >= 100) stopPano();
+    }, 80);
+  } else {
+    stopPano();
+  }
+}
+
+function stopPano() {
+  S.panoRunning = false;
+  clearInterval(S.panoInterval);
+  if (S.panoProgress >= 95) {
+    saveCapture('PANO');
+    toast('🌄 PANORAMA SAVED');
+  } else if (S.panoProgress > 0) {
+    toast('PANORAMA CANCELLED');
+  }
+  S.panoProgress = 0;
+  document.getElementById('pano-fill').style.width = '0%';
+}
+
+// ===================== SLO-MO =====================
+function setFPS(fps) {
+  S.fps = fps;
+  [120, 240, 480].forEach(f => {
+    document.getElementById('fps'+f).classList.toggle('on', f === fps);
+  });
+  const multiples = { 120: '4×', 240: '8×', 480: '16×' };
+  document.getElementById('slomo-tag').textContent = (multiples[fps]||'4×') + ' SLOW';
+  toast(fps + 'FPS SELECTED');
+}
+
+// ===================== TIMELAPSE =====================
+function toggleTimelapse() {
+  if (!S.tlRunning) {
+    S.tlRunning = true; S.tlCount = 0;
+    const secs = parseInt(document.getElementById('tl-select').value);
+    document.getElementById('capture-btn').classList.add('recording');
+    toast('⏩ TIMELAPSE STARTED');
+    S.tlInterval = setInterval(() => {
+      S.tlCount++;
+      document.getElementById('tl-frame-count').textContent = S.tlCount + ' FRAMES';
+      saveCapture('TL-' + S.tlCount);
+    }, Math.max(secs * 200, 400)); // compressed timing for demo
+  } else {
+    stopTimelapse();
+  }
+}
+
+function stopTimelapse() {
+  S.tlRunning = false;
+  clearInterval(S.tlInterval);
+  document.getElementById('capture-btn').classList.remove('recording');
+  toast(`⏩ TIMELAPSE DONE · ${S.tlCount} FRAMES`);
+}
+
+// ===================== SWITCH CAMERA =====================
+function switchCamera() {
+  S.front = !S.front;
+  toast(S.front ? 'FRONT CAMERA' : 'REAR CAMERA');
+}
+
+// ===================== COUNTDOWN =====================
+function runCountdown(cb) {
+  let n = S.timerVals[S.timerIdx];
+  const ov = document.getElementById('countdown');
+  const num = document.getElementById('countdown-num');
+  ov.classList.add('on');
+  num.textContent = n;
+  const iv = setInterval(() => {
+    n--;
+    if (n <= 0) {
+      clearInterval(iv);
+      ov.classList.remove('on');
+      cb();
+    } else {
+      num.textContent = n;
+    }
+  }, 1000);
+}
+
+// ===================== SETTINGS =====================
+function cycleSet(el, values) {
+  const idx = values.indexOf(el.textContent);
+  el.textContent = values[(idx + 1) % values.length];
+}
+
+// ===================== GALLERY =====================
+function openGallery() {
+  document.getElementById('gallery-modal').classList.add('open');
+  renderGallery();
+}
+function closeGallery() {
+  document.getElementById('gallery-modal').classList.remove('open');
+}
+function renderGallery() {
+  const grid = document.getElementById('gallery-grid');
+  const emptyState = document.getElementById('gallery-empty-state');
+  // Remove all cards (keep empty state)
+  Array.from(grid.querySelectorAll('.gal-card')).forEach(c => c.remove());
+  if (S.captures.length === 0) {
+    emptyState.style.display = 'flex';
+    return;
+  }
+  emptyState.style.display = 'none';
+  S.captures.forEach((cap, i) => {
+    const card = document.createElement('div');
+    card.className = 'gal-card';
+    const tc = document.createElement('canvas');
+    tc.width = 100; tc.height = 100;
+    tc.getContext('2d').drawImage(cap.canvas, 0, 0, 120, 120, 0, 0, 100, 100);
+    const tagEl = document.createElement('div');
+    tagEl.className = 'gal-tag';
+    tagEl.textContent = cap.tag;
+    const timeEl = document.createElement('div');
+    timeEl.className = 'gal-time';
+    timeEl.textContent = cap.time;
+    card.appendChild(tc); card.appendChild(tagEl); card.appendChild(timeEl);
+    card.onclick = () => toast(`${cap.tag} · ${cap.time}`);
+    grid.insertBefore(card, emptyState);
+  });
+}
+
+// ===================== SETTINGS MODAL =====================
+function openSettings() {
+  document.getElementById('settings-modal').classList.add('open');
+}
+function closeSettings() {
+  document.getElementById('settings-modal').classList.remove('open');
+}
+
+// ===================== TOAST =====================
+let toastTimer;
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 1800);
+}
+
+// ===================== AI SCENE ROTATION =====================
+S.sceneRotate = setInterval(() => {
+  S.sceneIdx = (S.sceneIdx + 1) % S.scenes.length;
+  document.getElementById('scene-label').textContent = S.scenes[S.sceneIdx];
+}, 3200);
+
+// ===================== HDR ON BY DEFAULT =====================
+document.getElementById('hdr-indicator').classList.add('on');
+
+// ===================== INIT =====================
+setMode('PHOTO');
+</script>
+
+</body>
+</html>
